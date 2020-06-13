@@ -1,0 +1,109 @@
+---
+title: "COVID-19 in Alameda County"
+output:
+  flexdashboard::flex_dashboard:
+    orientation: columns
+    vertical_layout: fill
+---
+
+```{r setup, include=FALSE}
+library(flexdashboard)
+library(tidyverse)
+library(plotly)
+library(whisker)
+
+# read in data
+ac <- read_csv("Alameda_County_Cumulative_Cases_By_Place_And_Zip.csv")
+ac$DtCreate <- as.Date(ac$DtCreate, format = "%Y/%m/%d")
+
+# convert from wide format to long format
+ac_tidy <- gather(ac, "Place", "Cases", -DtCreate)
+
+# replace "<10" values with a number (5?)
+# convert value column from text to integer
+ac_num <- ac_tidy %>%
+  mutate(Cases_Num = case_when(
+          Cases == "<10" ~ 5,
+          TRUE ~ suppressWarnings(as.numeric(Cases))
+          ))
+
+# filter out records corresponding to places (data also has zip codes)
+places <- c("Berkeley_LHJ",
+            "Under_Investigation",
+            "Known_Homeless",
+            "No_Address__May_Be_Homeless_",
+            "Santa_Rita_Jail",
+            "Alameda",
+            "Albany",
+            "Dublin",
+            "Emeryville",
+            "Fremont",
+            "Hayward",
+            "Livermore",
+            "Newark",
+            "Oakland",
+            "Piedmont",
+            "Pleasanton",
+            "San_Leandro",
+            "Union_City",
+            "Eden_Area_MAC",
+            "Castro_Valley_MAC",
+            "Fairview_MAC",
+            "Remainder_of_County"
+            )
+
+ac_places <- filter(ac_num, Place %in% places)
+
+```
+
+Places
+=====================================
+
+By [Jack J. Lee](https://www.jackjleescience.com) // Data from [Alameda County Data Sharing Initiative](https://data.acgov.org/datasets/AC-HCSA::alameda-county-cumulative-cases-by-place-and-zip) // Code on [GitHub](https://github.com/jackjlee/covid19_ac_cities) // Created on 2020-06-13
+
+Column {.tabset}
+-------------------------------------
+### Linear Scale
+```{r}
+ac_places_chart <- ggplot(ac_places, aes(x = DtCreate,
+                                         y = Cases_Num,
+                                         color = Place,
+                                         text = paste0("<b>Place: </b>", Place, "<br>",
+                                                       "<b>Date: </b>", format(DtCreate, format = "%b %d"), "<br>",
+                                                       "<b>Total cases: </b>", case_when(
+                                                                                Cases == 5 ~ "<10",
+                                                                                TRUE ~ as.character(Cases))),
+                                         group = 1)) +
+  xlab("") +
+  ylab("Confirmed cases") +
+  theme_minimal(base_size = 14) +
+  geom_point() +
+  geom_line()
+
+ggplotly(ac_places_chart, tooltip = "text") %>%
+  config(displayModeBar = FALSE)  %>%
+  layout(hoverlabel = list(align = "left"))
+```
+
+### Log Scale
+```{r}
+ac_places_chart <- ggplot(ac_places, aes(x = DtCreate,
+                                         y = Cases_Num,
+                                         color = Place,
+                                         text = paste0("<b>Place: </b>", Place, "<br>",
+                                                       "<b>Date: </b>", format(DtCreate, format = "%b %d"), "<br>",
+                                                       "<b>Total cases: </b>", case_when(
+                                                                                Cases == 5 ~ "<10",
+                                                                                TRUE ~ as.character(Cases))),
+                                         group = 1)) +
+  xlab("") +
+  ylab("Confirmed cases") +
+  scale_y_continuous(trans = "log10")  +
+  theme_minimal(base_size = 14) +
+  geom_point() +
+  geom_line()
+
+ggplotly(ac_places_chart, tooltip = "text") %>%
+  config(displayModeBar = FALSE)  %>%
+  layout(hoverlabel = list(align = "left"))
+```
